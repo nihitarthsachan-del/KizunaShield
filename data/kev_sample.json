@@ -1,0 +1,9 @@
+{
+  "CVE-2019-0708": {"name": "BlueKeep RDP RCE", "known_ransomware_use": true, "severity": "critical"},
+  "CVE-2011-2523": {"name": "vsftpd 2.3.4 Backdoor", "known_ransomware_use": true, "severity": "critical"},
+  "CVE-2021-41773": {"name": "Apache Path Traversal RCE", "known_ransomware_use": true, "severity": "high"},
+  "CVE-2017-0144": {"name": "EternalBlue SMB RCE", "known_ransomware_use": true, "severity": "critical"},
+  "CVE-2017-7921": {"name": "Hikvision Auth Bypass", "known_ransomware_use": false, "severity": "high"},
+  "CVE-2018-13379": {"name": "FortiOS SSL-VPN Path Traversal", "known_ransomware_use": true, "severity": "critical"},
+  "CVE-2016-6662": {"name": "MySQL Remote Root Config Injection", "known_ransomware_use": false, "severity": "medium"}
+}

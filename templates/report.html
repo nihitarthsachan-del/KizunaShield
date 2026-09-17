@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 2cm; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; font-size: 11pt; }
+  h1 { font-size: 20pt; margin-bottom: 0; color: #0b3d91; }
+  .subtitle { color: #555; font-size: 10pt; margin-top: 4px; }
+  .meta-box { background: #f4f6fb; border-left: 4px solid #0b3d91; padding: 12px 16px; margin: 16px 0; }
+  .risk-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: bold; color: white; }
+  .Critical { background: #b00020; }
+  .High { background: #d9822b; }
+  .Medium { background: #d4b106; color: #1a1a1a; }
+  .Low { background: #2e7d32; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { border: 1px solid #ddd; padding: 6px 8px; font-size: 9.5pt; text-align: left; }
+  th { background: #0b3d91; color: white; }
+  .section-title { font-size: 13pt; font-weight: bold; margin-top: 22px; border-bottom: 2px solid #0b3d91; padding-bottom: 4px; }
+  .footer-note { margin-top: 30px; font-size: 8.5pt; color: #777; }
+  .cve-tag { display: inline-block; background: #fce8e6; color: #b00020; border-radius: 3px; padding: 1px 6px; margin: 1px; font-size: 8.5pt; }
+</style>
+</head>
+<body>
+
+<h1>Cyber Exposure &amp; Ransomware Risk Report</h1>
+<div class="subtitle">Prepared in reference to Japan's Cyber Response Capability Enhancement Act reporting obligations</div>
+
+<div class="meta-box">
+  <strong>Organization:</strong> {{ org.name }}<br>
+  <strong>Sector:</strong> {{ org.sector }}<br>
+  <strong>Location:</strong> {{ org.location }}<br>
+  <strong>Report generated:</strong> {{ generated_at }}<br>
+  <strong>Overall Ransomware Risk Score:</strong>
+  <span class="risk-badge {{ org.org_risk_level }}">{{ org.org_risk_score }}/100 — {{ org.org_risk_level }}</span>
+</div>
+
+<div class="section-title">1. Executive Summary</div>
+<p>
+  This automated scan identified <strong>{{ org.assets|length }}</strong> internet-exposed asset(s)
+  belonging to {{ org.name }}. Of these,
+  <strong>{{ critical_count }}</strong> asset(s) are rated Critical risk and
+  <strong>{{ high_count }}</strong> rated High risk for ransomware compromise, based on exposure type
+  and correlation against known-exploited-vulnerability records. Organizations with a Critical or High
+  overall score should prioritize remediation ahead of the October 1, 2026 designated-operator
+  reporting deadline.
+</p>
+
+<div class="section-title">2. Exposed Asset Inventory</div>
+<table>
+  <tr>
+    <th>Host</th><th>IP</th><th>Port / Service</th><th>Version</th><th>Exposure Type</th><th>Risk Score</th><th>Level</th>
+  </tr>
+  {% for a in org.assets %}
+  <tr>
+    <td>{{ a.hostname }}</td>
+    <td>{{ a.ip }}</td>
+    <td>{{ a.port }} / {{ a.service }}</td>
+    <td>{{ a.version }}</td>
+    <td>{{ a.exposure_type }}</td>
+    <td>{{ a.risk_score }}</td>
+    <td><span class="risk-badge {{ a.risk_level }}">{{ a.risk_level }}</span></td>
+  </tr>
+  {% endfor %}
+</table>
+
+<div class="section-title">3. Known-Exploited Vulnerabilities Detected</div>
+{% set any_cve = org.assets | selectattr('matched_vulnerabilities') | list %}
+{% if any_cve %}
+<table>
+  <tr><th>Host</th><th>CVE</th><th>Description</th><th>Severity</th><th>Ransomware Use Documented</th></tr>
+  {% for a in org.assets %}
+    {% for v in a.matched_vulnerabilities %}
+    <tr>
+      <td>{{ a.hostname }}</td>
+      <td>{{ v.cve_id }}</td>
+      <td>{{ v.name }}</td>
+      <td>{{ v.severity }}</td>
+      <td>{{ "Yes" if v.known_ransomware_use else "No" }}</td>
+    </tr>
+    {% endfor %}
+  {% endfor %}
+</table>
+{% else %}
+<p>No known-exploited vulnerabilities were matched against current asset versions.</p>
+{% endif %}
+
+<div class="section-title">4. Recommended Remediation (Priority Order)</div>
+<ol>
+  {% for r in recommendations %}
+  <li>{{ r }}</li>
+  {% endfor %}
+</ol>
+
+<div class="section-title">5. Incident Reporting Readiness Notes</div>
+<p>
+  This report can serve as a baseline exposure record to support incident detection and reporting
+  obligations under the designated-operator scheme. Organizations should retain this record and
+  re-scan on a recurring basis to demonstrate ongoing monitoring capability.
+</p>
+
+<div class="footer-note">
+  Generated automatically by the SME Attack Surface &amp; Ransomware Risk Scanner (MVP). Scores are
+  derived from a rule-based model referencing exposure type and known-exploited-vulnerability data;
+  this report does not constitute a certified compliance filing.
+</div>
+
+</body>
+</html>

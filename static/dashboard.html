@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KizunaShield — Exposure Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+
+  :root {
+    --washi: #f4efe3;
+    --washi-panel: #ece4d3;
+    --aizome: #1c2e42;
+    --ink-soft: #6b6355;
+    --shu: #c53a1f;
+    --shu-deep: #a52f18;
+    --kin: #a9814f;
+    --hairline: rgba(58, 53, 45, 0.18);
+    --bg: var(--washi);
+    --bg-panel: var(--washi-panel);
+    --text-main: var(--aizome);
+    --text-soft: var(--ink-soft);
+    --accent: var(--shu);
+    --accent-deep: var(--shu-deep);
+    --gold: var(--kin);
+    --line: var(--hairline);
+    --card-bg: #fbf8f0;
+    --critical: #a52f18;
+    --high: #c07a2e;
+    --medium: #8a7a2e;
+    --low: #4a6b4a;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141c26;
+      --bg-panel: #1b2632;
+      --text-main: #ece3d2;
+      --text-soft: #a79f8d;
+      --accent: #e2542f;
+      --accent-deep: #c53a1f;
+      --gold: #c7a56b;
+      --line: rgba(236, 227, 210, 0.16);
+      --card-bg: #1e2a38;
+      --critical: #e2542f;
+      --high: #d69a4e;
+      --medium: #c9b25a;
+      --low: #7fae7f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141c26;
+    --bg-panel: #1b2632;
+    --text-main: #ece3d2;
+    --text-soft: #a79f8d;
+    --accent: #e2542f;
+    --accent-deep: #c53a1f;
+    --gold: #c7a56b;
+    --line: rgba(236, 227, 210, 0.16);
+    --card-bg: #1e2a38;
+    --critical: #e2542f;
+    --high: #d69a4e;
+    --medium: #c9b25a;
+    --low: #7fae7f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-main);
+    font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif;
+    font-weight: 300;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .mincho { font-family: 'Shippori Mincho', serif; font-weight: 600; }
+
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 68px;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--text-main);
+    text-decoration: none;
+  }
+  .brand .kanji-mark { font-size: 15px; color: var(--accent); }
+  .nav-back {
+    color: var(--text-soft);
+    text-decoration: none;
+    font-size: 14px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 2px;
+  }
+  .nav-back:hover { color: var(--accent); border-color: var(--accent); }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+  @media (max-width: 640px) { .wrap { padding: 0 20px; } }
+
+  main { padding: 48px 0 100px; }
+
+  .page-head { margin-bottom: 40px; }
+  .page-head h1 { font-size: clamp(26px, 3.2vw, 34px); margin: 0 0 10px; }
+  .page-head p { color: var(--text-soft); margin: 0; font-size: 15px; max-width: 520px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 36px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .org-list { display: flex; flex-direction: column; gap: 2px; }
+  .org-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-top: 1px solid var(--line);
+    padding: 18px 4px;
+    cursor: pointer;
+    color: var(--text-main);
+    font-family: inherit;
+  }
+  .org-list .org-item:last-child { border-bottom: 1px solid var(--line); }
+  .org-item:hover { color: var(--accent); }
+  .org-item.selected { border-left: 2px solid var(--accent); padding-left: 14px; color: var(--accent); }
+  .org-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .org-item-name { font-size: 15px; font-weight: 500; }
+  .org-item-score { font-family: 'Shippori Mincho', serif; font-size: 20px; }
+  .org-item-meta { font-size: 12.5px; color: var(--text-soft); margin-top: 4px; }
+  .org-item.selected .org-item-meta { color: var(--text-soft); }
+  .level-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; }
+
+  .detail {
+    border: 1px solid var(--gold);
+    padding: 10px;
+    background: var(--card-bg);
+  }
+  .detail-inner { border: 1px solid var(--line); padding: 34px; }
+
+  .detail-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    padding-bottom: 22px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .detail-head h2 { font-size: 22px; margin: 0 0 6px; }
+  .detail-head .meta { font-size: 13.5px; color: var(--text-soft); }
+  .score-block { text-align: right; }
+  .score-block .num { font-family: 'Shippori Mincho', serif; font-size: 44px; line-height: 1; }
+  .score-block .level { font-size: 13px; margin-top: 6px; letter-spacing: 0.02em; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--text-soft); font-weight: 500; font-size: 12px; }
+  td .ip { color: var(--text-soft); font-size: 11.5px; display: block; margin-top: 2px; }
+  .cve-pill {
+    display: inline-block;
+    border: 1px solid var(--critical);
+    color: var(--critical);
+    padding: 1px 8px;
+    margin: 1px 3px 1px 0;
+    font-size: 11px;
+  }
+  .risk-tag { font-size: 12px; padding: 3px 10px; border: 1px solid currentColor; white-space: nowrap; }
+
+  .report-btn {
+    margin-top: 28px;
+    background: var(--accent);
+    color: #fdf9f0;
+    border: 1px solid var(--accent);
+    padding: 13px 26px;
+    font-size: 14.5px;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .report-btn:hover { background: var(--accent-deep); }
+  .report-btn:disabled { opacity: 0.5; cursor: wait; }
+
+  .loading, .empty { color: var(--text-soft); padding: 40px 0; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/"><span class="kanji-mark">絆</span> KizunaShield</a>
+    <a class="nav-back" href="/">← Back to overview</a>
+  </div>
+</nav>
+
+<main>
+  <div class="wrap">
+    <div class="page-head">
+      <h1>Exposure dashboard</h1>
+      <p>Every scanned organization, ranked by ransomware risk. Select one to see its exposed assets and generate a compliance report.</p>
+    </div>
+
+    <div class="layout">
+      <div id="org-list" class="org-list">
+        <div class="loading">Loading organizations…</div>
+      </div>
+      <div id="detail">
+        <div class="empty">Select an organization to see its exposure detail.</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const levelColor = { Critical: 'var(--critical)', High: 'var(--high)', Medium: 'var(--medium)', Low: 'var(--low)' };
+let orgs = [];
+let selectedId = null;
+
+async function loadOrgs() {
+  const res = await fetch('/api/orgs');
+  orgs = await res.json();
+  orgs.sort((a, b) => b.org_risk_score - a.org_risk_score);
+  renderList();
+  if (orgs.length) selectOrg(orgs[0].org_id);
+}
+
+function renderList() {
+  const list = document.getElementById('org-list');
+  list.innerHTML = orgs.map(o => `
+    <button class="org-item${o.org_id === selectedId ? ' selected' : ''}" onclick="selectOrg('${o.org_id}')">
+      <div class="org-item-top">
+        <span class="org-item-name"><span class="level-dot" style="background:${levelColor[o.org_risk_level]}"></span>${o.name}</span>
+        <span class="org-item-score">${o.org_risk_score}</span>
+      </div>
+      <div class="org-item-meta">${o.sector} · ${o.location} · ${o.asset_count} asset(s)</div>
+    </button>
+  `).join('');
+}
+
+async function selectOrg(orgId) {
+  selectedId = orgId;
+  renderList();
+  const detail = document.getElementById('detail');
+  detail.innerHTML = '<div class="loading">Loading exposure detail…</div>';
+
+  const res = await fetch(`/api/orgs/${orgId}`);
+  const org = await res.json();
+
+  detail.innerHTML = `
+    <div class="detail">
+      <div class="detail-inner">
+        <div class="detail-head">
+          <div>
+            <h2>${org.name}</h2>
+            <div class="meta">${org.sector} · ${org.location}</div>
+          </div>
+          <div class="score-block">
+            <div class="num" style="color:${levelColor[org.org_risk_level]}">${org.org_risk_score}</div>
+            <div class="level" style="color:${levelColor[org.org_risk_level]}">${org.org_risk_level} risk</div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Host</th><th>Port / Service</th><th>Version</th><th>Exposure</th><th>Risk</th><th>Known vulnerabilities</th></tr>
+          </thead>
+          <tbody>
+            ${org.assets.map(a => `
+              <tr>
+                <td>${a.hostname}<span class="ip">${a.ip}</span></td>
+                <td>${a.port} / ${a.service}</td>
+                <td>${a.version}</td>
+                <td>${a.exposure_type.replace('_',' ')}</td>
+                <td><span class="risk-tag" style="color:${levelColor[a.risk_level]}">${a.risk_score} · ${a.risk_level}</span></td>
+                <td>${a.matched_vulnerabilities.map(v => `<span class="cve-pill">${v.cve_id}</span>`).join('') || '—'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <button class="report-btn" id="report-btn" onclick="downloadReport('${org.org_id}', this)">Generate compliance report (PDF)</button>
+      </div>
+    </div>
+  `;
+}
+
+function downloadReport(orgId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Preparing report…';
+  window.open(`/api/orgs/${orgId}/report`, '_blank');
+  setTimeout(() => { btn.disabled = false; btn.textContent = 'Generate compliance report (PDF)'; }, 1200);
+}
+
+loadOrgs();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KizunaShield — Attack Surface & Ransomware Risk Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+
+  :root {
+    --washi: #f4efe3;
+    --washi-panel: #ece4d3;
+    --aizome: #1c2e42;
+    --ink: #3a352d;
+    --ink-soft: #6b6355;
+    --shu: #c53a1f;
+    --shu-deep: #a52f18;
+    --kin: #a9814f;
+    --hairline: rgba(58, 53, 45, 0.18);
+    --bg: var(--washi);
+    --bg-panel: var(--washi-panel);
+    --text-main: var(--aizome);
+    --text-soft: var(--ink-soft);
+    --accent: var(--shu);
+    --accent-deep: var(--shu-deep);
+    --gold: var(--kin);
+    --line: var(--hairline);
+    --card-bg: #fbf8f0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --sumi: #141c26;
+      --sumi-panel: #1b2632;
+      --paper: #ece3d2;
+      --paper-soft: #a79f8d;
+      --bg: var(--sumi);
+      --bg-panel: var(--sumi-panel);
+      --text-main: var(--paper);
+      --text-soft: var(--paper-soft);
+      --accent: #e2542f;
+      --accent-deep: #c53a1f;
+      --gold: #c7a56b;
+      --line: rgba(236, 227, 210, 0.16);
+      --card-bg: #1e2a38;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --sumi: #141c26;
+    --sumi-panel: #1b2632;
+    --paper: #ece3d2;
+    --paper-soft: #a79f8d;
+    --bg: var(--sumi);
+    --bg-panel: var(--sumi-panel);
+    --text-main: var(--paper);
+    --text-soft: var(--paper-soft);
+    --accent: #e2542f;
+    --accent-deep: #c53a1f;
+    --gold: #c7a56b;
+    --line: rgba(236, 227, 210, 0.16);
+    --card-bg: #1e2a38;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-main);
+    font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif;
+    font-weight: 300;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.3s ease, color 0.3s ease;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .mincho {
+    font-family: 'Shippori Mincho', serif;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 0 20px; }
+  }
+
+  /* ---------- NAV ---------- */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 68px;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-main);
+    text-decoration: none;
+  }
+  .brand .kanji-mark {
+    font-size: 16px;
+    color: var(--accent);
+  }
+  .nav-links {
+    display: flex;
+    gap: 34px;
+    font-size: 14.5px;
+  }
+  .nav-links a {
+    color: var(--text-soft);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .nav-links a:hover { color: var(--accent); }
+  @media (max-width: 720px) {
+    .nav-links { display: none; }
+  }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    position: relative;
+    padding: 88px 0 110px;
+    overflow: hidden;
+  }
+  .hero .wrap {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 48px;
+  }
+  .hero-copy {
+    max-width: 480px;
+  }
+  .hero-eyebrow-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 26px;
+    color: var(--text-soft);
+    font-size: 14px;
+  }
+  .hero-eyebrow-line .rule {
+    width: 28px;
+    height: 1px;
+    background: var(--accent);
+  }
+  .hero h1 {
+    font-size: clamp(34px, 4.6vw, 52px);
+    line-height: 1.28;
+    margin: 0 0 26px;
+    color: var(--text-main);
+  }
+  .hero p.lede {
+    font-size: 17px;
+    color: var(--text-soft);
+    max-width: 420px;
+    margin: 0 0 36px;
+  }
+  .hero-ctas {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+  }
+  .btn {
+    display: inline-block;
+    padding: 13px 28px;
+    background: var(--accent);
+    color: #fdf9f0;
+    text-decoration: none;
+    font-size: 14.5px;
+    border: 1px solid var(--accent);
+    transition: background 0.15s, color 0.15s, transform 0.1s;
+  }
+  .btn:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+  .btn:active { transform: translateY(1px); }
+  .btn-ghost {
+    color: var(--text-main);
+    text-decoration: none;
+    font-size: 14.5px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 2px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* the boundary divider */
+  .kekkai-divider {
+    position: relative;
+    height: 100%;
+    min-height: 380px;
+    width: 2px;
+    background: linear-gradient(to bottom, transparent, var(--accent) 12%, var(--accent) 88%, transparent);
+    justify-self: center;
+  }
+  .kekkai-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 22px;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    background: var(--bg);
+    padding: 14px 6px;
+  }
+
+  .hero-art {
+    display: flex;
+    justify-content: center;
+  }
+  .hero-art svg { width: 100%; max-width: 320px; height: auto; }
+
+  @media (max-width: 900px) {
+    .hero .wrap { grid-template-columns: 1fr; }
+    .kekkai-divider { display: none; }
+    .hero-art { order: -1; margin-bottom: 8px; }
+    .hero-art svg { max-width: 220px; }
+    .hero-copy { max-width: 100%; }
+  }
+
+  /* ---------- STATS ---------- */
+  .stats {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 64px 0;
+  }
+  .stats .wrap {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+  }
+  @media (max-width: 720px) {
+    .stats .wrap { grid-template-columns: 1fr; gap: 44px; }
+  }
+  .stat-num {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(40px, 5vw, 58px);
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+  .stat-label {
+    font-size: 14.5px;
+    color: var(--text-soft);
+    max-width: 260px;
+  }
+
+  /* ---------- HOW IT WORKS ---------- */
+  .steps {
+    padding: 120px 0;
+  }
+  .section-head {
+    max-width: 560px;
+    margin-bottom: 70px;
+  }
+  .section-head h2 {
+    font-size: clamp(28px, 3.4vw, 38px);
+    margin: 0 0 18px;
+  }
+  .section-head p {
+    color: var(--text-soft);
+    font-size: 16px;
+    margin: 0;
+  }
+  .step-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 90px 70px 1fr;
+    gap: 28px;
+    padding: 40px 0;
+    border-top: 1px solid var(--line);
+    align-items: start;
+  }
+  .step:last-child { border-bottom: 1px solid var(--line); }
+  .step-num {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 42px;
+    color: var(--line);
+    line-height: 1;
+  }
+  .step-kanji {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 26px;
+    color: var(--accent);
+    writing-mode: vertical-rl;
+    justify-self: center;
+  }
+  .step-body h3 {
+    font-size: 19px;
+    margin: 0 0 10px;
+    font-weight: 600;
+  }
+  .step-body p {
+    color: var(--text-soft);
+    font-size: 15px;
+    max-width: 520px;
+    margin: 0;
+  }
+  @media (max-width: 640px) {
+    .step { grid-template-columns: 50px 40px 1fr; gap: 16px; }
+    .step-num { font-size: 30px; }
+    .step-kanji { font-size: 18px; }
+  }
+
+  /* ---------- DASHBOARD PREVIEW ---------- */
+  .preview {
+    padding: 0 0 130px;
+  }
+  .scroll-frame {
+    border: 1px solid var(--gold);
+    padding: 10px;
+    background: var(--card-bg);
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .scroll-frame-inner {
+    border: 1px solid var(--line);
+    padding: 34px;
+  }
+  .mock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .mock-header h4 {
+    font-family: 'Shippori Mincho', serif;
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .mock-header span {
+    font-size: 12.5px;
+    color: var(--text-soft);
+  }
+  .mock-rows { display: flex; flex-direction: column; gap: 14px; }
+  .mock-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 18px;
+    align-items: center;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+  }
+  .mock-org { font-size: 14.5px; }
+  .mock-org .loc { color: var(--text-soft); font-size: 12.5px; display: block; margin-top: 2px; }
+  .mock-score { font-family: 'Shippori Mincho', serif; font-size: 20px; }
+  .mock-tag {
+    font-size: 11.5px;
+    padding: 3px 11px;
+    border: 1px solid currentColor;
+  }
+  .tag-critical { color: var(--accent); }
+  .tag-high { color: var(--gold); }
+  .tag-low { color: var(--text-soft); }
+
+  @media (max-width: 640px) {
+    .mock-row { grid-template-columns: 1fr auto; }
+    .mock-score { display: none; }
+  }
+
+  /* ---------- CLOSING CTA ---------- */
+  .closing {
+    padding: 100px 0 120px;
+    text-align: center;
+    border-top: 1px solid var(--line);
+  }
+  .closing h2 {
+    font-size: clamp(28px, 4vw, 42px);
+    max-width: 620px;
+    margin: 0 auto 22px;
+  }
+  .closing p {
+    color: var(--text-soft);
+    max-width: 480px;
+    margin: 0 auto 38px;
+    font-size: 16px;
+  }
+  .torii-mark { margin: 0 auto 30px; width: 54px; height: auto; display: block; }
+  .torii-mark path { stroke: var(--accent); }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 30px 0;
+  }
+  footer .wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--text-soft);
+  }
+  footer .kanji-mark { color: var(--accent); margin-right: 6px; }
+
+  @media (max-width: 520px) {
+    footer .wrap { flex-direction: column; gap: 10px; text-align: center; }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      opacity: 0;
+      transform: translateY(14px);
+      animation: reveal-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    @keyframes reveal-in {
+      to { opacity: 1; transform: translateY(0); }
+    }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="kanji-mark">絆</span> KizunaShield</a>
+    <div class="nav-links">
+      <a href="#problem">The problem</a>
+      <a href="#how">How it works</a>
+      <a href="#preview">See it work</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="hero-copy reveal">
+      <div class="hero-eyebrow-line">
+        <span class="rule"></span>
+        <span>Attack surface & ransomware risk, for SMEs</span>
+      </div>
+      <h1>Every network has a gate.<br>Most SMEs leave it open.</h1>
+      <p class="lede">KizunaShield finds what's exposed on your network, scores the ransomware risk in plain terms, and writes the incident report your business needs before Japan's new cyber law takes effect.</p>
+      <div class="hero-ctas">
+        <a class="btn" href="/dashboard">See a sample scan</a>
+        <a class="btn-ghost" href="#how">How it works</a>
+      </div>
+    </div>
+
+    <div class="kekkai-divider" aria-hidden="true">
+      <span class="kekkai-label">絆</span>
+    </div>
+
+    <div class="hero-art" aria-hidden="true">
+      <svg viewBox="0 0 240 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <line x1="30" y1="90" x2="30" y2="270" stroke="var(--text-main)" stroke-width="6"/>
+        <line x1="210" y1="90" x2="210" y2="270" stroke="var(--text-main)" stroke-width="6"/>
+        <line x1="8" y1="60" x2="232" y2="60" stroke="var(--accent)" stroke-width="10"/>
+        <line x1="20" y1="86" x2="220" y2="86" stroke="var(--text-main)" stroke-width="5"/>
+        <line x1="120" y1="86" x2="120" y2="270" stroke="var(--text-main)" stroke-width="4" opacity="0.55"/>
+        <circle cx="120" cy="45" r="3" fill="var(--accent)"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section class="stats" id="problem">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="stat-num">39%</div>
+      <div class="stat-label">year-over-year rise in ransomware incidents against Japanese organizations</div>
+    </div>
+    <div class="reveal">
+      <div class="stat-num">22M</div>
+      <div class="stat-label">internet-exposed devices across Japan, most with no owner watching them</div>
+    </div>
+    <div class="reveal">
+      <div class="stat-num">Oct 1</div>
+      <div class="stat-label">2026 — when the Cyber Response Capability Enhancement Act begins requiring incident reporting</div>
+    </div>
+  </div>
+</section>
+
+<section class="steps" id="how">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2>Three steps, no security team required</h2>
+      <p>KizunaShield is built for businesses that can't run enterprise-grade security operations — it does the discovery, the judgment, and the paperwork.</p>
+    </div>
+    <div class="step-list">
+      <div class="step reveal">
+        <div class="step-num">01</div>
+        <div class="step-kanji">発見</div>
+        <div class="step-body">
+          <h3>Discover what's exposed</h3>
+          <p>KizunaShield maps internet-facing ports, services, and software versions across your network — the entry points an attacker would find first.</p>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">02</div>
+        <div class="step-kanji">評点</div>
+        <div class="step-body">
+          <h3>Score the ransomware risk</h3>
+          <p>Every exposed asset is weighed against known-exploited-vulnerability data and real ransomware attack patterns, in a score anyone can read at a glance.</p>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">03</div>
+        <div class="step-kanji">報告</div>
+        <div class="step-body">
+          <h3>Generate the report</h3>
+          <p>A compliance-ready incident report is produced automatically — mapped to the disclosure timelines the new law requires.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="preview" id="preview">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2>What you'll see</h2>
+      <p>A single view of every exposed asset, ranked by how urgently it matters.</p>
+    </div>
+    <div class="scroll-frame reveal">
+      <div class="scroll-frame-inner">
+        <div class="mock-header">
+          <h4>Exposure overview</h4>
+          <span>5 organizations scanned</span>
+        </div>
+        <div class="mock-rows">
+          <div class="mock-row">
+            <div class="mock-org">Kansai Precision Parts Co.<span class="loc">Osaka · Manufacturing</span></div>
+            <div class="mock-score">79</div>
+            <div class="mock-tag tag-critical">High</div>
+          </div>
+          <div class="mock-row">
+            <div class="mock-org">Nagoya Logistics KK<span class="loc">Nagoya · Logistics</span></div>
+            <div class="mock-score">74</div>
+            <div class="mock-tag tag-critical">High</div>
+          </div>
+          <div class="mock-row">
+            <div class="mock-org">Fukuoka Foods Processing<span class="loc">Fukuoka · Food manufacturing</span></div>
+            <div class="mock-score">71</div>
+            <div class="mock-tag tag-high">High</div>
+          </div>
+          <div class="mock-row">
+            <div class="mock-org">Sendai Electronics Assembly<span class="loc">Sendai · Electronics</span></div>
+            <div class="mock-score">34</div>
+            <div class="mock-tag tag-low">Low</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="margin-top: 22px; font-size: 14.5px;"><a class="btn-ghost" href="/dashboard">Open the live dashboard</a></p>
+  </div>
+</section>
+
+<section class="closing">
+  <div class="wrap">
+    <svg class="torii-mark" viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="18" y1="20" x2="18" y2="74" stroke-width="4"/>
+      <line x1="82" y1="20" x2="82" y2="74" stroke-width="4"/>
+      <line x1="6" y1="12" x2="94" y2="12" stroke-width="7"/>
+      <line x1="14" y1="24" x2="86" y2="24" stroke-width="3.5"/>
+    </svg>
+    <h2>Close the gap before October 1.</h2>
+    <p>KizunaShield gives resource-constrained SMEs the visibility and paperwork that enterprise security teams take for granted.</p>
+    <a class="btn" href="/dashboard">See a sample scan</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><span class="kanji-mark">絆</span>KizunaShield — Attack Surface & Ransomware Risk Scanner</div>
+    <div>Built for Japan's SMEs</div>
+  </div>
+</footer>
+
+</body>
+</html>

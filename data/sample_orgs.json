@@ -1,0 +1,152 @@
+[
+  {
+    "org_id": "sme001",
+    "name": "Kansai Precision Parts Co.",
+    "sector": "Manufacturing (Auto Supplier)",
+    "location": "Osaka, Japan",
+    "assets": [
+      {
+        "asset_id": "a1",
+        "ip": "203.0.113.10",
+        "hostname": "vpn-gw.kansai-precision.example",
+        "port": 3389,
+        "service": "RDP",
+        "version": "Windows Server 2012 R2",
+        "cves": ["CVE-2019-0708"],
+        "exposure_type": "remote_admin"
+      },
+      {
+        "asset_id": "a2",
+        "ip": "203.0.113.11",
+        "hostname": "ftp.kansai-precision.example",
+        "port": 21,
+        "service": "FTP",
+        "version": "vsftpd 2.3.4",
+        "cves": ["CVE-2011-2523"],
+        "exposure_type": "file_transfer"
+      },
+      {
+        "asset_id": "a3",
+        "ip": "203.0.113.12",
+        "hostname": "www.kansai-precision.example",
+        "port": 443,
+        "service": "HTTPS",
+        "version": "Apache 2.4.49",
+        "cves": ["CVE-2021-41773"],
+        "exposure_type": "web_server"
+      }
+    ]
+  },
+  {
+    "org_id": "sme002",
+    "name": "Nagoya Logistics KK",
+    "sector": "Logistics / Supply Chain",
+    "location": "Nagoya, Japan",
+    "assets": [
+      {
+        "asset_id": "b1",
+        "ip": "198.51.100.20",
+        "hostname": "erp.nagoya-logistics.example",
+        "port": 445,
+        "service": "SMB",
+        "version": "SMBv1",
+        "cves": ["CVE-2017-0144"],
+        "exposure_type": "file_sharing"
+      },
+      {
+        "asset_id": "b2",
+        "ip": "198.51.100.21",
+        "hostname": "cam-admin.nagoya-logistics.example",
+        "port": 80,
+        "service": "HTTP",
+        "version": "Hikvision DVR Web UI",
+        "cves": ["CVE-2017-7921"],
+        "exposure_type": "iot_admin_panel"
+      }
+    ]
+  },
+  {
+    "org_id": "sme003",
+    "name": "Fukuoka Foods Processing",
+    "sector": "Food Manufacturing",
+    "location": "Fukuoka, Japan",
+    "assets": [
+      {
+        "asset_id": "c1",
+        "ip": "192.0.2.30",
+        "hostname": "mail.fukuoka-foods.example",
+        "port": 25,
+        "service": "SMTP",
+        "version": "Exim 4.92",
+        "cves": [],
+        "exposure_type": "mail_server"
+      },
+      {
+        "asset_id": "c2",
+        "ip": "192.0.2.31",
+        "hostname": "vpn.fukuoka-foods.example",
+        "port": 443,
+        "service": "HTTPS VPN",
+        "version": "Fortinet FortiOS 6.0.4",
+        "cves": ["CVE-2018-13379"],
+        "exposure_type": "remote_admin"
+      }
+    ]
+  },
+  {
+    "org_id": "sme004",
+    "name": "Yokohama Marine Components",
+    "sector": "Manufacturing (Marine Parts)",
+    "location": "Yokohama, Japan",
+    "assets": [
+      {
+        "asset_id": "d1",
+        "ip": "203.0.113.40",
+        "hostname": "scada-hmi.yokohama-marine.example",
+        "port": 502,
+        "service": "Modbus/SCADA",
+        "version": "Legacy PLC Interface",
+        "cves": [],
+        "exposure_type": "ot_ics"
+      },
+      {
+        "asset_id": "d2",
+        "ip": "203.0.113.41",
+        "hostname": "www.yokohama-marine.example",
+        "port": 443,
+        "service": "HTTPS",
+        "version": "nginx 1.18.0",
+        "cves": [],
+        "exposure_type": "web_server"
+      }
+    ]
+  },
+  {
+    "org_id": "sme005",
+    "name": "Sendai Electronics Assembly",
+    "sector": "Electronics Manufacturing",
+    "location": "Sendai, Japan",
+    "assets": [
+      {
+        "asset_id": "e1",
+        "ip": "198.51.100.50",
+        "hostname": "remote-desktop.sendai-elec.example",
+        "port": 3389,
+        "service": "RDP",
+        "version": "Windows Server 2016",
+        "cves": [],
+        "exposure_type": "remote_admin"
+      },
+      {
+        "asset_id": "e2",
+        "ip": "198.51.100.51",
+        "hostname": "db.sendai-elec.example",
+        "port": 3306,
+        "service": "MySQL",
+        "version": "MySQL 5.5.30",
+        "cves": ["CVE-2016-6662"],
+        "exposure_type": "database"
+      }
+    ]
+  }
+]
