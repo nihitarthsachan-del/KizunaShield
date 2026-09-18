@@ -1,756 +1,145 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KizunaShield — Attack Surface &amp; Ransomware Risk Scanner</title>
-<meta name="description" content="KizunaShield discovers exposed assets, scores ransomware risk against known-exploited vulnerabilities, and generates the compliance report Japan's Cyber Response Capability Enhancement Act requires." />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --ink: #1c1b19;
-    --washi: #f1ece1;
-    --washi-deep: #e6ddcd;
-    --indigo-deep: #10192c;
-    --indigo-mid: #1d2c47;
-    --vermillion: #bf3b2c;
-    --vermillion-dark: #8f2a1f;
-    --ember: #d9a441;
-    --grey-warm: #c9c2b3;
-    --serif: "Shippori Mincho", serif;
-    --sans: "Zen Kaku Gothic New", sans-serif;
-    --measure: 62ch;
-  }
+"""
+KizunaShield — Attack Surface & Ransomware Risk Scanner (MVP backend).
 
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
+Routes:
+    GET  /                        -> marketing landing page
+    GET  /connect                 -> network connection onboarding page
+    GET  /dashboard               -> exposure dashboard (talks to the API below)
+    GET  /api/orgs                -> list all orgs with scores
+    GET  /api/orgs/{org_id}       -> full scored detail for one org
+    GET  /api/orgs/{org_id}/report -> download compliance PDF report
+    POST /api/connect             -> record a network-connection request
+"""
 
-  @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-  }
+import json
+import os
+from datetime import datetime, timezone
+from typing import Literal, Optional
 
-  body {
-    margin: 0;
-    background: var(--washi);
-    color: var(--ink);
-    font-family: var(--sans);
-    font-weight: 400;
-    line-height: 1.65;
-    -webkit-font-smoothing: antialiased;
-  }
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
-  h1, h2, h3 { font-family: var(--serif); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
-  p { margin: 0; }
-  a { color: inherit; text-decoration: none; }
+from report_generator import generate_report
+from scoring import score_all_orgs
 
-  a:focus-visible,
-  button:focus-visible,
-  [tabindex]:focus-visible {
-    outline: 2px solid var(--ember);
-    outline-offset: 3px;
-    border-radius: 2px;
-  }
+app = FastAPI(title="KizunaShield — Attack Surface & Ransomware Risk Scanner")
 
-  /* subtle paper grain, used only on washi sections */
-  .grain {
-    position: relative;
-  }
-  .grain::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.05;
-    mix-blend-mode: multiply;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
+BASE_DIR = os.path.dirname(__file__)
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+DATA_DIR = os.path.join(BASE_DIR, "data")
+CONNECT_REQUESTS_PATH = os.path.join(DATA_DIR, "connect_requests.json")
 
-  /* ---------- nav ---------- */
-  .nav {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.1rem clamp(1.25rem, 4vw, 3rem);
-    color: var(--washi);
-    mix-blend-mode: normal;
-  }
-  .nav-mark {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    font-family: var(--serif);
-    font-size: 1.15rem;
-    letter-spacing: 0.02em;
-  }
-  .nav-mark .kanji {
-    font-size: 1.3rem;
-    color: var(--vermillion);
-  }
-  .nav-links {
-    display: flex;
-    align-items: center;
-    gap: clamp(1rem, 2vw, 2.25rem);
-    font-size: 0.92rem;
-  }
-  .nav-links a { opacity: 0.85; transition: opacity 0.2s ease; }
-  .nav-links a:hover { opacity: 1; }
-  .nav-cta {
-    border: 1px solid rgba(241,236,225,0.4);
-    padding: 0.5rem 1.1rem;
-    border-radius: 2px;
-    font-size: 0.88rem;
-  }
-  .nav-cta:hover { border-color: var(--washi); background: rgba(241,236,225,0.08); }
-  .nav-toggle {
-    display: none;
-    background: none;
-    border: none;
-    color: var(--washi);
-    font-size: 1.4rem;
-    cursor: pointer;
-    line-height: 1;
-  }
+# Serve landing.html's/dashboard.html's own asset references (none currently,
+# but this keeps room for future css/js/img files without touching routes).
+app.mount("/assets", StaticFiles(directory=STATIC_DIR), name="assets")
 
-  @media (max-width: 720px) {
-    .nav-links { display: none; }
-    .nav-links.open {
-      display: flex;
-      flex-direction: column;
-      position: absolute;
-      top: 100%; left: 0; right: 0;
-      background: var(--indigo-deep);
-      padding: 1.25rem clamp(1.25rem, 4vw, 3rem) 1.75rem;
-      align-items: flex-start;
-      gap: 1rem;
-    }
-    .nav-toggle { display: block; }
-  }
 
-  /* ---------- hero ---------- */
-  .hero {
-    position: relative;
-    height: 100vh;
-    min-height: 560px;
-    overflow: hidden;
-    background: linear-gradient(180deg, var(--indigo-deep) 0%, var(--indigo-mid) 100%);
-  }
-  #hero-canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-  .hero-content {
-    position: absolute;
-    left: 0; right: 0;
-    bottom: 14%;
-    padding: 0 clamp(1.25rem, 4vw, 3rem);
-    max-width: 780px;
-    color: var(--washi);
-    will-change: transform, opacity;
-  }
-  .hero-content h1 {
-    font-size: clamp(2.3rem, 5.4vw, 4.2rem);
-    line-height: 1.08;
-    color: var(--washi);
-  }
-  .hero-content p {
-    margin-top: 1.4rem;
-    max-width: 46ch;
-    font-size: 1.08rem;
-    color: var(--grey-warm);
-  }
-  .hero-actions {
-    margin-top: 2.2rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-  .btn-primary, .btn-ghost {
-    font-family: var(--sans);
-    font-size: 0.95rem;
-    padding: 0.85rem 1.6rem;
-    border-radius: 2px;
-    cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-  }
-  .btn-primary {
-    background: var(--vermillion);
-    color: var(--washi);
-    border: 1px solid var(--vermillion);
-  }
-  .btn-primary:hover { background: var(--vermillion-dark); border-color: var(--vermillion-dark); }
-  .btn-ghost {
-    background: transparent;
-    color: var(--washi);
-    border: 1px solid rgba(241,236,225,0.35);
-  }
-  .btn-ghost:hover { border-color: var(--washi); }
+def _read_static(filename: str) -> str:
+    with open(os.path.join(STATIC_DIR, filename), encoding="utf-8") as f:
+        return f.read()
 
-  .scroll-cue {
-    position: absolute;
-    bottom: 2.4rem;
-    left: clamp(1.25rem, 4vw, 3rem);
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    color: var(--grey-warm);
-    font-size: 0.78rem;
-    letter-spacing: 0.04em;
-  }
-  .scroll-cue .line {
-    width: 1px;
-    height: 34px;
-    background: linear-gradient(var(--grey-warm), transparent);
-    animation: scrollpulse 2.2s ease-in-out infinite;
-  }
-  @keyframes scrollpulse {
-    0%, 100% { opacity: 0.25; }
-    50% { opacity: 0.9; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .scroll-cue .line { animation: none; opacity: 0.5; }
-  }
 
-  /* ---------- generic section rhythm ---------- */
-  .section {
-    padding: clamp(4rem, 9vw, 7.5rem) clamp(1.25rem, 4vw, 3rem);
-  }
-  .section-inner {
-    max-width: 1080px;
-    margin: 0 auto;
-  }
-  .eyebrow-plain {
-    display: block;
-    font-size: 0.85rem;
-    color: var(--vermillion);
-    margin-bottom: 0.9rem;
-  }
+def get_scored_orgs():
+    # Recomputed on each call — cheap for MVP scale, keeps demo data "live"
+    return {org["org_id"]: org for org in score_all_orgs()}
 
-  /* ---------- law / deadline ---------- */
-  .section--indigo {
-    background: var(--indigo-deep);
-    color: var(--washi);
-  }
-  .law-grid {
-    display: grid;
-    grid-template-columns: minmax(220px, 340px) 1fr;
-    gap: clamp(2rem, 5vw, 4.5rem);
-    align-items: start;
-  }
-  @media (max-width: 760px) {
-    .law-grid { grid-template-columns: 1fr; }
-  }
-  .law-date-figure {
-    display: block;
-    font-family: var(--serif);
-    font-size: clamp(2.4rem, 5vw, 3.4rem);
-    color: var(--washi);
-    line-height: 1.05;
-  }
-  .law-copy h2 {
-    font-size: clamp(1.6rem, 3vw, 2.3rem);
-    color: var(--washi);
-    max-width: 20ch;
-  }
-  .law-copy p {
-    margin-top: 1.3rem;
-    max-width: var(--measure);
-    color: var(--grey-warm);
-    font-size: 1.02rem;
-  }
-  .law-copy p + p { margin-top: 1rem; }
 
-  .torii-divider {
-    margin-top: clamp(3rem, 7vw, 5rem);
-    display: flex;
-    justify-content: center;
-  }
-  .torii-divider svg { width: 92px; height: auto; opacity: 0.9; }
+class ConnectRequest(BaseModel):
+    method: Literal["ip_range", "agent", "saas"]
+    org_name: str
+    contact_email: str
+    details: Optional[dict] = None
 
-  /* ---------- how it works ---------- */
-  .steps {
-    list-style: none;
-    margin: 2.75rem 0 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0;
-    border-top: 1px solid rgba(28,27,25,0.14);
-  }
-  @media (max-width: 860px) {
-    .steps { grid-template-columns: 1fr 1fr; }
-  }
-  @media (max-width: 520px) {
-    .steps { grid-template-columns: 1fr; }
-  }
-  .steps li {
-    padding: 1.9rem 1.5rem 1.9rem 0;
-    border-right: 1px solid rgba(28,27,25,0.14);
-    border-bottom: 1px solid rgba(28,27,25,0.14);
-  }
-  .steps li:last-child { border-right: none; }
-  .step-index {
-    display: block;
-    font-family: var(--serif);
-    font-size: 1rem;
-    color: var(--vermillion);
-    margin-bottom: 0.9rem;
-  }
-  .steps h3 {
-    font-size: 1.2rem;
-    margin-bottom: 0.6rem;
-  }
-  .steps p {
-    font-size: 0.95rem;
-    color: #52504b;
-  }
 
-  /* ---------- stat row ---------- */
-  .section--stats {
-    background: var(--washi-deep);
-  }
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1.7fr 1fr;
-    gap: clamp(2rem, 5vw, 3.5rem);
-    align-items: start;
-  }
-  @media (max-width: 760px) {
-    .stats-grid { grid-template-columns: 1fr; }
-  }
-  .stat {
-    padding-left: 1.25rem;
-    border-left: 2px solid var(--vermillion);
-  }
-  .stat h3 {
-    font-size: 1.35rem;
-    line-height: 1.3;
-    margin-bottom: 0.6rem;
-  }
-  .stat p {
-    font-size: 0.95rem;
-    color: #52504b;
-    max-width: 34ch;
-  }
-  .stat--lead {
-    padding-top: 0.2rem;
-  }
-  .stat--lead h3 {
-    font-family: var(--serif);
-    font-size: clamp(1.7rem, 3vw, 2.15rem);
-    line-height: 1.25;
-    max-width: 16ch;
-  }
-  .stat--lead p {
-    margin-top: 0.9rem;
-    font-size: 1.02rem;
-    max-width: 38ch;
-  }
-  .stat-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 2.25rem;
-  }
-  @media (max-width: 760px) {
-    .stat-stack { margin-top: 0.5rem; }
-  }
+def _load_connect_requests() -> list:
+    if not os.path.exists(CONNECT_REQUESTS_PATH):
+        return []
+    with open(CONNECT_REQUESTS_PATH, encoding="utf-8") as f:
+        return json.load(f)
 
-  /* ---------- dashboard preview ---------- */
-  .preview-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: clamp(2rem, 5vw, 4rem);
-    align-items: center;
-  }
-  @media (max-width: 820px) {
-    .preview-grid { grid-template-columns: 1fr; }
-  }
-  .preview-copy h2 {
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    max-width: 18ch;
-  }
-  .preview-copy p {
-    margin-top: 1.2rem;
-    max-width: var(--measure);
-    color: #45433f;
-  }
-  .preview-copy .btn-primary {
-    margin-top: 1.75rem;
-    display: inline-block;
-  }
-  .mock-card {
-    background: var(--indigo-deep);
-    border-radius: 4px;
-    padding: 1.5rem;
-    color: var(--washi);
-  }
-  .mock-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.85rem 0;
-    border-bottom: 1px solid rgba(241,236,225,0.12);
-    font-size: 0.9rem;
-  }
-  .mock-row:last-child { border-bottom: none; }
-  .mock-org { color: var(--grey-warm); }
-  .risk-pill {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.6rem;
-    border-radius: 999px;
-    letter-spacing: 0.02em;
-  }
-  .risk-pill.critical { background: rgba(191,59,44,0.22); color: #e08376; }
-  .risk-pill.high { background: rgba(217,164,65,0.2); color: var(--ember); }
-  .risk-pill.moderate { background: rgba(201,194,179,0.18); color: var(--grey-warm); }
 
-  /* ---------- footer / final cta ---------- */
-  .cta-final {
-    background: var(--indigo-deep);
-    color: var(--washi);
-    text-align: left;
-  }
-  .cta-final .section-inner {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 2rem;
-  }
-  .cta-final h2 {
-    font-size: clamp(1.8rem, 3.6vw, 2.6rem);
-    max-width: 16ch;
-    color: var(--washi);
-  }
-  footer.site-footer {
-    background: var(--indigo-deep);
-    color: var(--grey-warm);
-    padding: 1.5rem clamp(1.25rem, 4vw, 3rem) 2.25rem;
-    border-top: 1px solid rgba(241,236,225,0.1);
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 1rem;
-    font-size: 0.85rem;
-  }
-  footer.site-footer a { opacity: 0.8; }
-  footer.site-footer a:hover { opacity: 1; }
-</style>
-</head>
-<body>
+def _save_connect_requests(requests_log: list) -> None:
+    # Note: on serverless deploys (Vercel) the app directory is read-only at
+    # runtime — same constraint generate_report works around by returning an
+    # in-memory buffer. If this is deployed there, point CONNECT_REQUESTS_PATH
+    # at /tmp instead, or swap this for a real datastore; the JSON-file
+    # version below is fine for local dev but won't persist across
+    # invocations on Vercel.
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(CONNECT_REQUESTS_PATH, "w", encoding="utf-8") as f:
+        json.dump(requests_log, f, indent=2)
 
-<nav class="nav">
-  <a href="#" class="nav-mark"><span class="kanji">絆</span>KizunaShield</a>
-  <div class="nav-links" id="nav-links">
-    <a href="#how">How it works</a>
-    <a href="#law">The deadline</a>
-    <a href="/connect">Connect your network</a>
-    <a href="/dashboard" class="nav-cta">See a sample scan</a>
-  </div>
-  <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="nav-links">☰</button>
-</nav>
 
-<header class="hero">
-  <canvas id="hero-canvas"></canvas>
-  <div class="hero-content" id="hero-content">
-    <h1>The exposure you can't see is the risk you can't report.</h1>
-    <p>KizunaShield finds what's exposed to the internet, scores it against known-exploited vulnerabilities, and builds the report Japan's new cyber response law will ask for.</p>
-    <div class="hero-actions">
-      <a href="/dashboard" class="btn-primary">See a sample scan</a>
-      <a href="#how" class="btn-ghost">How it works</a>
-    </div>
-  </div>
-  <div class="scroll-cue"><span class="line"></span>Scroll</div>
-</header>
+@app.get("/", response_class=HTMLResponse)
+def landing():
+    return _read_static("landing.html")
 
-<section class="section section--indigo" id="law">
-  <div class="section-inner">
-    <div class="law-grid">
-      <div class="law-date">
-        <span class="eyebrow-plain">Effective</span>
-        <span class="law-date-figure">October 1<br>2026</span>
-      </div>
-      <div class="law-copy">
-        <h2>A new law is changing what SMEs owe regulators.</h2>
-        <p>Japan's Cyber Response Capability Enhancement Act pushes reporting obligations further down the size ladder than before, into organizations that have never had to formalize incident response.</p>
-        <p>Most of the small and mid-sized companies affected have no dedicated security team, no asset inventory, and no existing process for turning a scan into a document a regulator will accept. KizunaShield is built to close that specific gap — cheaply, and before the date above.</p>
-      </div>
-    </div>
-    <div class="torii-divider" aria-hidden="true">
-      <svg viewBox="0 0 100 70" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="6" y="14" width="88" height="6" rx="1" fill="#bf3b2c"/>
-        <rect x="2" y="22" width="96" height="4" rx="1" fill="#bf3b2c" opacity="0.85"/>
-        <rect x="18" y="24" width="7" height="42" fill="#bf3b2c"/>
-        <rect x="75" y="24" width="7" height="42" fill="#bf3b2c"/>
-        <rect x="14" y="46" width="72" height="4.5" fill="#bf3b2c" opacity="0.8"/>
-      </svg>
-    </div>
-  </div>
-</section>
 
-<section class="section grain" id="how">
-  <div class="section-inner">
-    <h2 style="font-size: clamp(1.8rem, 3.4vw, 2.4rem); max-width: 22ch;">Four steps from unknown exposure to a filed report</h2>
-    <ol class="steps">
-      <li>
-        <span class="step-index">1</span>
-        <h3>Discover</h3>
-        <p>Pull in exposed assets — RDP, FTP, SMB shares, IoT admin panels, OT/SCADA endpoints, open databases — from a scan or from data you already have.</p>
-      </li>
-      <li>
-        <span class="step-index">2</span>
-        <h3>Score</h3>
-        <p>Each asset gets a base risk score by exposure type, boosted when it matches a known-exploited vulnerability, boosted again if that CVE has documented ransomware use.</p>
-      </li>
-      <li>
-        <span class="step-index">3</span>
-        <h3>Report</h3>
-        <p>Generate a compliance-ready PDF: executive summary, asset inventory, matched vulnerabilities, and a readiness note — no manual formatting.</p>
-      </li>
-      <li>
-        <span class="step-index">4</span>
-        <h3>Remediate</h3>
-        <p>Work down a prioritized fix list ordered by what actually reduces ransomware risk first, not just by severity label.</p>
-      </li>
-    </ol>
-  </div>
-</section>
+@app.get("/connect", response_class=HTMLResponse)
+def connect_page():
+    return _read_static("connect.html")
 
-<section class="section section--stats">
-  <div class="section-inner">
-    <div class="stats-grid">
-      <div class="stat stat--lead">
-        <h3>Built for the budget SMEs actually have</h3>
-        <p>No native dependencies, no per-seat licensing, no security team required to operate it.</p>
-      </div>
-      <div class="stat-stack">
-        <div class="stat">
-          <h3>Scored against real exploitation data</h3>
-          <p>Matches exposed assets against a known-exploited-vulnerabilities reference, not a generic severity chart.</p>
-        </div>
-        <div class="stat">
-          <h3>The report is the deliverable</h3>
-          <p>Output is a document a regulator can read, not a dashboard only your IT contractor understands.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
-<section class="section grain">
-  <div class="section-inner preview-grid">
-    <div class="preview-copy">
-      <h2>See it on five sample organizations first</h2>
-      <p>The dashboard runs on a demo dataset of five fictional Japanese SMEs with realistic exposure profiles, sorted worst-first. Open one, review its exposed assets and matched vulnerabilities, then generate its report.</p>
-      <a href="/dashboard" class="btn-primary">Open the dashboard</a>
-    </div>
-    <div class="mock-card" aria-hidden="true">
-      <div class="mock-row"><span class="mock-org">Hoshino Logistics</span><span class="risk-pill critical">Critical</span></div>
-      <div class="mock-row"><span class="mock-org">Aoyama Precision Parts</span><span class="risk-pill high">High</span></div>
-      <div class="mock-row"><span class="mock-org">Tsurumi Cold Storage</span><span class="risk-pill high">High</span></div>
-      <div class="mock-row"><span class="mock-org">Nagisa Dental Group</span><span class="risk-pill moderate">Moderate</span></div>
-      <div class="mock-row"><span class="mock-org">Kotobuki Print &amp; Design</span><span class="risk-pill moderate">Moderate</span></div>
-    </div>
-  </div>
-</section>
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard():
+    return _read_static("dashboard.html")
 
-<section class="section cta-final">
-  <div class="section-inner">
-    <h2>Know what's exposed before the deadline decides for you.</h2>
-    <div class="hero-actions" style="margin-top: 0;">
-      <a href="/dashboard" class="btn-primary">See a sample scan</a>
-      <a href="/connect" class="btn-ghost">Connect your network</a>
-    </div>
-  </div>
-</section>
 
-<footer class="site-footer">
-  <span>KizunaShield — attack surface &amp; ransomware risk scanner</span>
-  <a href="https://github.com/nihitarthsachan-del/67">Source on GitHub</a>
-</footer>
+@app.get("/api/orgs")
+def list_orgs():
+    orgs = get_scored_orgs()
+    return [
+        {
+            "org_id": o["org_id"],
+            "name": o["name"],
+            "sector": o["sector"],
+            "location": o["location"],
+            "org_risk_score": o["org_risk_score"],
+            "org_risk_level": o["org_risk_level"],
+            "asset_count": len(o["assets"]),
+        }
+        for o in orgs.values()
+    ]
 
-<script type="module">
-import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 
-const canvas = document.getElementById("hero-canvas");
-const heroEl = document.querySelector(".hero");
-const heroContent = document.getElementById("hero-content");
-const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+@app.get("/api/orgs/{org_id}")
+def get_org(org_id: str):
+    orgs = get_scored_orgs()
+    org = orgs.get(org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return org
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x131c30);
-scene.fog = new THREE.FogExp2(0x1d2c47, 0.055);
+@app.get("/api/orgs/{org_id}/report")
+def get_report(org_id: str):
+    orgs = get_scored_orgs()
+    org = orgs.get(org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
 
-const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-camera.position.set(0, 1.4, 9);
-camera.lookAt(0, 2, 0);
+    # generate_report now returns an in-memory BytesIO buffer instead of
+    # writing a PDF to disk (see report_generator.py) — required for
+    # serverless deploys (e.g. Vercel) where the app directory is read-only
+    # and only /tmp is writable.
+    pdf_buffer = generate_report(org)
+    filename = f"{org['name']}_incident_report.pdf"
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
-// lighting
-scene.add(new THREE.AmbientLight(0x3a4a6b, 1.1));
-const key = new THREE.DirectionalLight(0xd9a441, 0.9);
-key.position.set(3, 6, 4);
-scene.add(key);
-const rim = new THREE.PointLight(0xbf3b2c, 1.4, 20);
-rim.position.set(0, 3, -1);
-scene.add(rim);
 
-// ground
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(60, 60),
-  new THREE.MeshStandardMaterial({ color: 0x0d1526, roughness: 1 })
-);
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
-
-// torii gate
-const toriiGroup = new THREE.Group();
-const vermillion = new THREE.MeshStandardMaterial({ color: 0xbf3b2c, roughness: 0.55, emissive: 0x2a0d08, emissiveIntensity: 0.3 });
-
-function pillar(x) {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 4.6, 12), vermillion);
-  m.position.set(x, 2.3, 0);
-  toriiGroup.add(m);
-}
-pillar(-1.9);
-pillar(1.9);
-
-const kasagi = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.26, 0.5), vermillion);
-kasagi.position.set(0, 4.75, 0);
-toriiGroup.add(kasagi);
-
-const shimaki = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.18, 0.34), new THREE.MeshStandardMaterial({ color: 0x1c1b19, roughness: 0.8 }));
-shimaki.position.set(0, 4.5, 0);
-toriiGroup.add(shimaki);
-
-const nuki = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.24, 0.3), vermillion);
-nuki.position.set(0, 3.5, 0);
-toriiGroup.add(nuki);
-
-scene.add(toriiGroup);
-
-// layered mountain silhouettes for depth
-function ridgeShape(width, height, seed) {
-  const shape = new THREE.Shape();
-  const points = 10;
-  shape.moveTo(-width / 2, -height);
-  for (let i = 0; i <= points; i++) {
-    const x = -width / 2 + (width * i) / points;
-    const y = Math.sin(i * 0.9 + seed) * height * 0.22 + Math.sin(i * 0.35 + seed * 2) * height * 0.12;
-    shape.lineTo(x, y);
-  }
-  shape.lineTo(width / 2, -height);
-  shape.closePath();
-  return shape;
-}
-
-const ridgeConfigs = [
-  { z: -6, color: 0x1a2947, height: 3.2, width: 26, seed: 1.2, y: 1.4 },
-  { z: -11, color: 0x141f38, height: 4.2, width: 34, seed: 3.4, y: 1.9 },
-  { z: -17, color: 0x10192c, height: 5.4, width: 44, seed: 5.1, y: 2.4 },
-];
-ridgeConfigs.forEach((cfg) => {
-  const geo = new THREE.ShapeGeometry(ridgeShape(cfg.width, cfg.height, cfg.seed));
-  const mat = new THREE.MeshBasicMaterial({ color: cfg.color });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(0, cfg.y, cfg.z);
-  scene.add(mesh);
-});
-
-// drifting embers
-const emberCount = 140;
-const emberGeo = new THREE.BufferGeometry();
-const positions = new Float32Array(emberCount * 3);
-const speeds = new Float32Array(emberCount);
-for (let i = 0; i < emberCount; i++) {
-  positions[i * 3] = (Math.random() - 0.5) * 14;
-  positions[i * 3 + 1] = Math.random() * 6;
-  positions[i * 3 + 2] = (Math.random() - 0.5) * 14 - 2;
-  speeds[i] = 0.15 + Math.random() * 0.35;
-}
-emberGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-const emberMat = new THREE.PointsMaterial({ color: 0xd9a441, size: 0.05, transparent: true, opacity: 0.75 });
-const embers = new THREE.Points(emberGeo, emberMat);
-scene.add(embers);
-
-function resize() {
-  const w = heroEl.clientWidth;
-  const h = heroEl.clientHeight;
-  renderer.setSize(w, h, false);
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-}
-resize();
-window.addEventListener("resize", resize);
-
-let scrollProgress = 0;
-function updateScroll() {
-  const heroHeight = heroEl.offsetHeight;
-  const y = window.scrollY;
-  scrollProgress = Math.min(Math.max(y / heroHeight, 0), 1);
-  const easeOut = 1 - Math.pow(1 - scrollProgress, 2);
-  heroContent.style.transform = `translateY(${easeOut * 40}px)`;
-  heroContent.style.opacity = String(1 - easeOut * 1.15);
-}
-window.addEventListener("scroll", updateScroll, { passive: true });
-updateScroll();
-
-let visible = !document.hidden;
-document.addEventListener("visibilitychange", () => { visible = !document.hidden; });
-
-const clock = new THREE.Clock();
-function animate() {
-  requestAnimationFrame(animate);
-  if (!visible) return;
-
-  const t = clock.getElapsedTime();
-
-  // camera dolly through the gate, driven by scroll
-  const zStart = 9, zEnd = 2.4;
-  camera.position.z = zStart + (zEnd - zStart) * scrollProgress;
-  camera.position.y = 1.4 + scrollProgress * 0.9;
-  camera.lookAt(0, 2 + scrollProgress * 0.6, -4);
-
-  if (!reduceMotion) {
-    toriiGroup.position.y = Math.sin(t * 0.4) * 0.02;
-    const pos = emberGeo.attributes.position;
-    for (let i = 0; i < emberCount; i++) {
-      let y = pos.getY(i) + speeds[i] * 0.01;
-      if (y > 6) y = 0;
-      pos.setY(i, y);
-      pos.setX(i, pos.getX(i) + Math.sin(t + i) * 0.0015);
-    }
-    pos.needsUpdate = true;
-  }
-
-  renderer.render(scene, camera);
-}
-animate();
-</script>
-
-<script>
-  const toggle = document.getElementById("nav-toggle");
-  const links = document.getElementById("nav-links");
-  toggle.addEventListener("click", () => {
-    const isOpen = links.classList.toggle("open");
-    toggle.setAttribute("aria-expanded", String(isOpen));
-  });
-  links.querySelectorAll("a").forEach((a) => {
-    a.addEventListener("click", () => {
-      links.classList.remove("open");
-      toggle.setAttribute("aria-expanded", "false");
-    });
-  });
-</script>
-
-</body>
-</html>
+@app.post("/api/connect")
+def submit_connect_request(payload: ConnectRequest):
+    requests_log = _load_connect_requests()
+    request_id = f"req_{len(requests_log) + 1:04d}"
+    entry = payload.model_dump()
+    entry["request_id"] = request_id
+    entry["submitted_at"] = datetime.now(timezone.utc).isoformat()
+    requests_log.append(entry)
+    _save_connect_requests(requests_log)
+    return {"status": "received", "request_id": request_id}
