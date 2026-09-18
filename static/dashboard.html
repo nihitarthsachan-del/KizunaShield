@@ -217,13 +217,16 @@
 
   /* User-selectable dark aesthetic palette; the original palette remains the default. */
   :root[data-theme="midnight"] {
-    --bg: #1d3353; --bg-panel: #727ea5; --text-main: #eee4bd; --text-soft: #eee4bd;
-    --accent: #64a9ee; --accent-deep: #a5744d; --gold: #a5744d;
-    --line: rgba(238,228,189,.28); --card-bg: #1d3353; --critical: #64a9ee;
-    --high: #a5744d; --medium: #eee4bd; --low: #64a9ee;
+    --bg: #1b1114; --bg-panel: #2a171b; --text-main: #f5e6d0; --text-soft: #d2b5a0;
+    --accent: #e4574f; --accent-deep: #a52f36; --gold: #e3a35d;
+    --line: rgba(245,230,208,.26); --card-bg: #2a171b; --critical: #ff7168;
+    --high: #e3a35d; --medium: #f5e6d0; --low: #86c9a0;
   }
-  .theme-toggle { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 999px; padding: .42rem .75rem; font: inherit; font-size: .78rem; cursor: pointer; white-space: nowrap; margin-left: .8rem; }
-  .theme-toggle:hover { background: rgba(100,169,238,.14); }
+  :root[data-theme="midnight"] .theme-toggle { border-color: #e3a35d; color: #f5e6d0; background: #3b2026; }
+  :root[data-theme="midnight"] .theme-toggle:hover { background: #4b2028; }
+  :root[data-theme="midnight"] .detail { background: #2a171b; border-color: #e3a35d; }
+  :root[data-theme="midnight"] .detail-inner { background: #1b1114; border-color: rgba(245,230,208,.3); }
+  :root[data-theme="midnight"] .report-btn { color: #fff6e8; border-color: #e4574f; }
 </style>
 </head>
 <body>
