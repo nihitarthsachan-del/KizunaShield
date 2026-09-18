@@ -248,6 +248,15 @@
   }
   footer.site-footer a { opacity: 0.8; }
   footer.site-footer a:hover { opacity: 1; }
+
+  /* User-selectable dark aesthetic palette; the original palette remains the default. */
+  :root[data-theme="midnight"] {
+    --ink: #eee4bd; --washi: #1d3353; --washi-deep: #727ea5;
+    --indigo-deep: #1d3353; --indigo-mid: #727ea5; --vermillion: #64a9ee;
+    --vermillion-dark: #a5744d; --ember: #64a9ee; --grey-warm: #eee4bd;
+  }
+  .theme-toggle { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 999px; padding: .42rem .75rem; font: inherit; font-size: .78rem; cursor: pointer; white-space: nowrap; opacity: .9; }
+  .theme-toggle:hover { opacity: 1; background: rgba(100,169,238,.14); }
 </style>
 </head>
 <body>
@@ -259,6 +268,7 @@
     <a href="/#law">The deadline</a>
     <a href="/dashboard" class="nav-cta">See a sample scan</a>
   </div>
+  <button class="theme-toggle" type="button" aria-label="Switch color palette" aria-pressed="false">Dark aesthetic</button>
   <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="nav-links">☰</button>
 </nav>
 
@@ -488,6 +498,28 @@
       }
     });
   });
+</script>
+
+
+<script>
+(() => {
+  const root = document.documentElement;
+  if (localStorage.getItem('kizuna-theme') === 'midnight') root.dataset.theme = 'midnight';
+  const toggle = document.querySelector('.theme-toggle');
+  if (!toggle) return;
+  const update = () => {
+    const active = root.dataset.theme === 'midnight';
+    toggle.textContent = active ? 'Classic palette' : 'Dark aesthetic';
+    toggle.setAttribute('aria-pressed', String(active));
+  };
+  toggle.addEventListener('click', () => {
+    const active = root.dataset.theme !== 'midnight';
+    if (active) root.dataset.theme = 'midnight'; else delete root.dataset.theme;
+    localStorage.setItem('kizuna-theme', active ? 'midnight' : 'classic');
+    update();
+  });
+  update();
+})();
 </script>
 
 </body>
