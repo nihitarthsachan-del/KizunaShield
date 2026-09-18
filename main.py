@@ -2,15 +2,16 @@
 KizunaShield — Attack Surface & Ransomware Risk Scanner (MVP backend).
 
 Routes:
-  GET  /                         -> marketing landing page
-  GET  /dashboard                -> exposure dashboard (talks to the API below)
-  GET  /api/orgs                 -> list all orgs with scores
-  GET  /api/orgs/{org_id}        -> full scored detail for one org
-  GET  /api/orgs/{org_id}/report -> download compliance PDF report
+  GET /                          -> marketing landing page
+  GET /dashboard                 -> exposure dashboard (talks to the API below)
+  GET /api/orgs                  -> list all orgs with scores
+  GET /api/orgs/{org_id}         -> full scored detail for one org
+  GET /api/orgs/{org_id}/report  -> download compliance PDF report
 """
 import os
+
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from scoring import score_all_orgs
@@ -78,5 +79,15 @@ def get_report(org_id: str):
     org = orgs.get(org_id)
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-    path = generate_report(org)
-    return FileResponse(path, media_type="application/pdf", filename=f"{org['name']}_incident_report.pdf")
+
+    # generate_report now returns an in-memory BytesIO buffer instead of
+    # writing a PDF to disk (see report_generator.py) — required for
+    # serverless deploys (e.g. Vercel) where the app directory is read-only
+    # and only /tmp is writable.
+    pdf_buffer = generate_report(org)
+    filename = f"{org['name']}_incident_report.pdf"
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
