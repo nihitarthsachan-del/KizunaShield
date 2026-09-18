@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Connect your network — KizunaShield</title>
+<meta name="description" content="Connect KizunaShield to your organization's network by IP/domain range, a lightweight agent, or a no-install SaaS connection." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1c1b19;
+    --washi: #f1ece1;
+    --washi-deep: #e6ddcd;
+    --indigo-deep: #10192c;
+    --indigo-mid: #1d2c47;
+    --vermillion: #bf3b2c;
+    --vermillion-dark: #8f2a1f;
+    --ember: #d9a441;
+    --grey-warm: #c9c2b3;
+    --serif: "Shippori Mincho", serif;
+    --sans: "Zen Kaku Gothic New", sans-serif;
+    --measure: 62ch;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--washi);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  p { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--ember);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* nav — same system as the landing page */
+  .nav {
+    position: sticky;
+    top: 0; left: 0; right: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.1rem clamp(1.25rem, 4vw, 3rem);
+    background: var(--indigo-deep);
+    color: var(--washi);
+  }
+  .nav-mark {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-family: var(--serif);
+    font-size: 1.15rem;
+  }
+  .nav-mark .kanji { font-size: 1.3rem; color: var(--vermillion); }
+  .nav-links { display: flex; align-items: center; gap: clamp(1rem, 2vw, 2.25rem); font-size: 0.92rem; }
+  .nav-links a { opacity: 0.85; transition: opacity 0.2s ease; }
+  .nav-links a:hover { opacity: 1; }
+  .nav-cta { border: 1px solid rgba(241,236,225,0.4); padding: 0.5rem 1.1rem; border-radius: 2px; font-size: 0.88rem; }
+  .nav-cta:hover { border-color: var(--washi); background: rgba(241,236,225,0.08); }
+  .nav-toggle { display: none; background: none; border: none; color: var(--washi); font-size: 1.4rem; cursor: pointer; }
+  @media (max-width: 780px) {
+    .nav-links { display: none; }
+    .nav-links.open {
+      display: flex; flex-direction: column;
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: var(--indigo-deep);
+      padding: 1.25rem clamp(1.25rem, 4vw, 3rem) 1.75rem;
+      align-items: flex-start; gap: 1rem;
+    }
+    .nav-toggle { display: block; }
+  }
+
+  /* intro band */
+  .intro {
+    background: var(--indigo-deep);
+    color: var(--washi);
+    padding: clamp(3rem, 7vw, 5rem) clamp(1.25rem, 4vw, 3rem) clamp(3.5rem, 8vw, 6rem);
+  }
+  .intro-inner { max-width: 1080px; margin: 0 auto; }
+  .intro h1 {
+    font-size: clamp(2rem, 4.2vw, 3rem);
+    max-width: 20ch;
+    color: var(--washi);
+  }
+  .intro p {
+    margin-top: 1.2rem;
+    max-width: var(--measure);
+    color: var(--grey-warm);
+    font-size: 1.03rem;
+  }
+  .torii-divider { display: flex; justify-content: center; margin-top: clamp(2.5rem, 6vw, 4rem); }
+  .torii-divider svg { width: 76px; height: auto; opacity: 0.9; }
+
+  /* method selector */
+  .methods-section {
+    padding: clamp(3rem, 7vw, 5rem) clamp(1.25rem, 4vw, 3rem) clamp(4rem, 9vw, 7rem);
+  }
+  .methods-inner { max-width: 1080px; margin: 0 auto; }
+
+  .method-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: rgba(28,27,25,0.14);
+    border: 1px solid rgba(28,27,25,0.14);
+  }
+  @media (max-width: 720px) {
+    .method-tabs { grid-template-columns: 1fr; }
+  }
+  .method-tab {
+    position: relative;
+    background: var(--washi);
+  }
+  .method-tab input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+  }
+  .method-tab label {
+    display: block;
+    padding: 1.6rem 1.5rem;
+    cursor: pointer;
+  }
+  .method-tab .method-index {
+    display: block;
+    font-family: var(--serif);
+    color: var(--vermillion);
+    font-size: 0.95rem;
+    margin-bottom: 0.7rem;
+  }
+  .method-tab h3 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+  .method-tab p { font-size: 0.9rem; color: #52504b; }
+  .method-tab input:checked + label {
+    background: var(--washi-deep);
+    box-shadow: inset 0 -3px 0 var(--vermillion);
+  }
+  .method-tab input:focus-visible + label {
+    outline: 2px solid var(--ember);
+    outline-offset: -2px;
+  }
+
+  .method-panel {
+    display: none;
+    border: 1px solid rgba(28,27,25,0.14);
+    border-top: none;
+    padding: clamp(1.75rem, 4vw, 2.75rem);
+    background: var(--washi);
+  }
+  .method-panel.active { display: block; }
+
+  .panel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(2rem, 4vw, 3rem);
+  }
+  @media (max-width: 780px) {
+    .panel-grid { grid-template-columns: 1fr; }
+  }
+
+  .panel-copy h2 { font-size: 1.5rem; max-width: 20ch; }
+  .panel-copy p { margin-top: 1rem; color: #45433f; font-size: 0.98rem; max-width: 40ch; }
+  .panel-copy ul { margin: 1.1rem 0 0; padding-left: 1.15rem; color: #45433f; font-size: 0.95rem; }
+  .panel-copy li { margin-bottom: 0.4rem; }
+
+  .field { margin-bottom: 1.1rem; }
+  .field label {
+    display: block;
+    font-size: 0.85rem;
+    color: #52504b;
+    margin-bottom: 0.4rem;
+  }
+  .field input, .field textarea {
+    width: 100%;
+    font-family: var(--sans);
+    font-size: 0.95rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid rgba(28,27,25,0.25);
+    border-radius: 2px;
+    background: var(--washi);
+    color: var(--ink);
+  }
+  .field textarea { resize: vertical; min-height: 4.5rem; }
+  .field input:focus, .field textarea:focus { outline: none; border-color: var(--vermillion); }
+
+  .btn-primary {
+    font-family: var(--sans);
+    font-size: 0.95rem;
+    padding: 0.85rem 1.6rem;
+    border-radius: 2px;
+    cursor: pointer;
+    background: var(--vermillion);
+    color: var(--washi);
+    border: 1px solid var(--vermillion);
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+  .btn-primary:hover { background: var(--vermillion-dark); border-color: var(--vermillion-dark); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .code-block {
+    margin-top: 1rem;
+    background: var(--indigo-deep);
+    color: var(--grey-warm);
+    font-family: monospace;
+    font-size: 0.85rem;
+    padding: 1rem 1.1rem;
+    border-radius: 2px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .placeholder-note {
+    margin-top: 0.6rem;
+    font-size: 0.82rem;
+    color: var(--vermillion-dark);
+  }
+
+  .form-status {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    display: none;
+  }
+  .form-status.visible { display: block; }
+  .form-status.success { color: #3f6b3f; }
+  .form-status.error { color: var(--vermillion-dark); }
+
+  footer.site-footer {
+    background: var(--indigo-deep);
+    color: var(--grey-warm);
+    padding: 1.5rem clamp(1.25rem, 4vw, 3rem) 2.25rem;
+    border-top: 1px solid rgba(241,236,225,0.1);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.85rem;
+  }
+  footer.site-footer a { opacity: 0.8; }
+  footer.site-footer a:hover { opacity: 1; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-mark"><span class="kanji">絆</span>KizunaShield</a>
+  <div class="nav-links" id="nav-links">
+    <a href="/#how">How it works</a>
+    <a href="/#law">The deadline</a>
+    <a href="/dashboard" class="nav-cta">See a sample scan</a>
+  </div>
+  <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="nav-links">☰</button>
+</nav>
+
+<section class="intro">
+  <div class="intro-inner">
+    <h1>Connect your network</h1>
+    <p>Pick the way you want KizunaShield to see your exposure. All three feed the same scoring engine and the same compliance report — the difference is how much access each one needs.</p>
+  </div>
+  <div class="torii-divider" aria-hidden="true">
+    <svg viewBox="0 0 100 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="14" width="88" height="6" rx="1" fill="#bf3b2c"/>
+      <rect x="2" y="22" width="96" height="4" rx="1" fill="#bf3b2c" opacity="0.85"/>
+      <rect x="18" y="24" width="7" height="42" fill="#bf3b2c"/>
+      <rect x="75" y="24" width="7" height="42" fill="#bf3b2c"/>
+      <rect x="14" y="46" width="72" height="4.5" fill="#bf3b2c" opacity="0.8"/>
+    </svg>
+  </div>
+</section>
+
+<section class="methods-section">
+  <div class="methods-inner">
+
+    <div class="method-tabs" role="radiogroup" aria-label="Connection method">
+      <div class="method-tab">
+        <input type="radio" name="method" id="tab-ip" value="ip_range" checked>
+        <label for="tab-ip">
+          <span class="method-index">1</span>
+          <h3>IP / domain range</h3>
+          <p>Give us the ranges you already own and we scan only those.</p>
+        </label>
+      </div>
+      <div class="method-tab">
+        <input type="radio" name="method" id="tab-agent" value="agent">
+        <label for="tab-agent">
+          <span class="method-index">2</span>
+          <h3>Lightweight agent</h3>
+          <p>One outbound-only agent inside your network — no inbound access.</p>
+        </label>
+      </div>
+      <div class="method-tab">
+        <input type="radio" name="method" id="tab-saas" value="saas">
+        <label for="tab-saas">
+          <span class="method-index">3</span>
+          <h3>No-install SaaS</h3>
+          <p>Passive lookups against your domain — nothing touches your network.</p>
+        </label>
+      </div>
+    </div>
+
+    <!-- Panel 1: IP / domain range -->
+    <div class="method-panel active" id="panel-ip_range">
+      <div class="panel-grid">
+        <div class="panel-copy">
+          <h2>Scan a range you already own</h2>
+          <p>You give us a CIDR block or a list of domains, we run the same exposure scan we run against the demo orgs and score the result the same way.</p>
+          <ul>
+            <li>Only scans ranges you explicitly list</li>
+            <li>Read-only reconnaissance — no exploitation</li>
+            <li>Results feed the same dashboard and PDF report</li>
+          </ul>
+        </div>
+        <form class="panel-form" data-method="ip_range">
+          <div class="field">
+            <label for="ip-org">Organization name</label>
+            <input type="text" id="ip-org" name="org_name" required>
+          </div>
+          <div class="field">
+            <label for="ip-email">Contact email</label>
+            <input type="email" id="ip-email" name="contact_email" required>
+          </div>
+          <div class="field">
+            <label for="ip-ranges">IP ranges (CIDR, one per line)</label>
+            <textarea id="ip-ranges" name="ip_ranges" placeholder="203.0.113.0/24"></textarea>
+          </div>
+          <div class="field">
+            <label for="ip-domains">Domains (one per line)</label>
+            <textarea id="ip-domains" name="domains" placeholder="example.co.jp"></textarea>
+          </div>
+          <button type="submit" class="btn-primary">Request a scan</button>
+          <p class="form-status" role="status"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Panel 2: Lightweight agent -->
+    <div class="method-panel" id="panel-agent">
+      <div class="panel-grid">
+        <div class="panel-copy">
+          <h2>Install one lightweight agent</h2>
+          <p>Run a single small agent on any machine inside the network. It reports what it can see internally — no inbound port ever has to be opened for us.</p>
+          <ul>
+            <li>Outbound-only — nothing listens for connections</li>
+            <li>One binary, one machine, no per-endpoint install</li>
+            <li>You control what it's allowed to look at</li>
+          </ul>
+        </div>
+        <form class="panel-form" data-method="agent">
+          <div class="field">
+            <label for="agent-org">Organization name</label>
+            <input type="text" id="agent-org" name="org_name" required>
+          </div>
+          <div class="field">
+            <label for="agent-email">Contact email</label>
+            <input type="email" id="agent-email" name="contact_email" required>
+          </div>
+          <div class="field">
+            <label for="agent-sites">Number of sites/locations</label>
+            <input type="text" id="agent-sites" name="site_count" placeholder="1">
+          </div>
+          <button type="submit" class="btn-primary">Generate agent token</button>
+          <p class="form-status" role="status"></p>
+          <div class="code-block" id="agent-command" hidden></div>
+          <p class="placeholder-note" id="agent-note" hidden>This install command is a placeholder — the agent build and hosted installer aren't part of this demo yet.</p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Panel 3: No-install SaaS -->
+    <div class="method-panel" id="panel-saas">
+      <div class="panel-grid">
+        <div class="panel-copy">
+          <h2>Connect without installing anything</h2>
+          <p>We look up what's already publicly exposed about your domain through passive sources — nothing is sent to your network, nothing is installed.</p>
+          <ul>
+            <li>No scanning traffic ever reaches your network</li>
+            <li>Based on public exposure data tied to your domain</li>
+            <li>Lowest access, also the least complete picture</li>
+          </ul>
+        </div>
+        <form class="panel-form" data-method="saas">
+          <div class="field">
+            <label for="saas-org">Organization name</label>
+            <input type="text" id="saas-org" name="org_name" required>
+          </div>
+          <div class="field">
+            <label for="saas-email">Contact email</label>
+            <input type="email" id="saas-email" name="contact_email" required>
+          </div>
+          <div class="field">
+            <label for="saas-domain">Primary domain</label>
+            <input type="text" id="saas-domain" name="primary_domain" placeholder="example.co.jp" required>
+          </div>
+          <button type="submit" class="btn-primary">Connect</button>
+          <p class="form-status" role="status"></p>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <span>KizunaShield — attack surface &amp; ransomware risk scanner</span>
+  <a href="/">Back to overview</a>
+</footer>
+
+<script>
+  // tab switching
+  const tabs = document.querySelectorAll('input[name="method"]');
+  const panels = {
+    ip_range: document.getElementById('panel-ip_range'),
+    agent: document.getElementById('panel-agent'),
+    saas: document.getElementById('panel-saas'),
+  };
+  tabs.forEach((tab) => {
+    tab.addEventListener('change', () => {
+      Object.values(panels).forEach((p) => p.classList.remove('active'));
+      panels[tab.value].classList.add('active');
+    });
+  });
+
+  // mobile nav toggle
+  const navToggle = document.getElementById('nav-toggle');
+  const navLinks = document.getElementById('nav-links');
+  navToggle.addEventListener('click', () => {
+    const isOpen = navLinks.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', String(isOpen));
+  });
+
+  // form submission
+  document.querySelectorAll('.panel-form').forEach((form) => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const method = form.dataset.method;
+      const statusEl = form.querySelector('.form-status');
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const formData = new FormData(form);
+      const details = {};
+      formData.forEach((value, key) => {
+        if (key === 'org_name' || key === 'contact_email') return;
+        details[key] = value;
+      });
+
+      submitBtn.disabled = true;
+      statusEl.className = 'form-status visible';
+      statusEl.textContent = 'Sending…';
+
+      try {
+        const res = await fetch('/api/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            method,
+            org_name: formData.get('org_name'),
+            contact_email: formData.get('contact_email'),
+            details,
+          }),
+        });
+        if (!res.ok) throw new Error('Request failed');
+        const data = await res.json();
+
+        statusEl.className = 'form-status visible success';
+        statusEl.textContent = `Request received — reference ${data.request_id}. We'll follow up at the email you gave us.`;
+
+        if (method === 'agent') {
+          const cmd = document.getElementById('agent-command');
+          const note = document.getElementById('agent-note');
+          cmd.hidden = false;
+          note.hidden = false;
+          cmd.textContent = `curl -fsSL https://kizuna-shield.vercel.app/agent/install.sh | sh -s -- --token ${data.request_id}`;
+        }
+      } catch (err) {
+        statusEl.className = 'form-status visible error';
+        statusEl.textContent = "Something went wrong sending that — please try again.";
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
