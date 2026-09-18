@@ -1,17 +1,21 @@
-"""HTML report and email delivery for network scan requests."""
+"""HTML report and SMTP email delivery for scan requests."""
 
 from __future__ import annotations
 
 import html
 import json
 import os
-from datetime import datetime, timezone
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+import smtplib
+from email.message import EmailMessage
+from email.utils import formataddr
 
 NOTIFY_EMAIL = os.getenv("SCAN_NOTIFY_EMAIL", "madipadige.nikhil4u@gmail.com")
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-EMAIL_FROM = os.getenv("SCAN_EMAIL_FROM", "KizunaShield <onboarding@resend.dev>")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
+SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "KizunaShield")
 
 
 def _esc(value: object) -> str:
@@ -37,25 +41,29 @@ def build_request_report(entry: dict) -> str:
 
 
 def send_request_report(entry: dict) -> None:
-    """Send the report through Resend when configured; fail loudly for observability."""
-    if not RESEND_API_KEY:
-        raise RuntimeError("RESEND_API_KEY is not configured")
+    """Send the request report through an authenticated SMTP mailbox."""
+    missing = [name for name, value in {
+        "SMTP_USER": SMTP_USER,
+        "SMTP_PASSWORD": SMTP_PASSWORD,
+        "SMTP_FROM": SMTP_FROM,
+    }.items() if not value]
+    if missing:
+        raise RuntimeError(f"Email automation is not configured: missing {', '.join(missing)}")
+
     report_html = build_request_report(entry)
-    payload = json.dumps({
-        "from": EMAIL_FROM,
-        "to": [NOTIFY_EMAIL],
-        "subject": f"KizunaShield scan request {entry['request_id']} — {entry.get('org_name', 'Unknown organization')}",
-        "html": report_html,
-    }).encode("utf-8")
-    request = Request(
-        "https://api.resend.com/emails",
-        data=payload,
-        headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
-        method="POST",
-    )
+    message = EmailMessage()
+    message["Subject"] = f"KizunaShield scan request {entry['request_id']} — {entry.get('org_name', 'Unknown organization')}"
+    message["From"] = formataddr((SMTP_FROM_NAME, SMTP_FROM))
+    message["To"] = NOTIFY_EMAIL
+    message.set_content("A new KizunaShield scan request is attached as an HTML email. Please view it in an HTML-capable email client.")
+    message.add_alternative(report_html, subtype="html")
+
     try:
-        with urlopen(request, timeout=10) as response:
-            if response.status >= 300:
-                raise RuntimeError(f"Email provider returned HTTP {response.status}")
-    except (HTTPError, URLError) as exc:
-        raise RuntimeError(f"Email delivery failed: {exc}") from exc
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(message)
+    except (OSError, smtplib.SMTPException) as exc:
+        raise RuntimeError(f"Email automation failed: {exc}") from exc
