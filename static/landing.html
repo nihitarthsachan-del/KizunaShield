@@ -445,15 +445,12 @@
 
   /* User-selectable dark aesthetic palette; the original palette remains the default. */
   :root[data-theme="midnight"] {
-    --ink: #f5e6d0; --washi: #1b1114; --washi-deep: #3b2026;
-    --indigo-deep: #12090c; --indigo-mid: #4b2028; --vermillion: #e4574f;
-    --vermillion-dark: #a52f36; --ember: #e3a35d; --grey-warm: #d2b5a0;
+    --ink: #eee4bd; --washi: #1d3353; --washi-deep: #727ea5;
+    --indigo-deep: #1d3353; --indigo-mid: #727ea5; --vermillion: #64a9ee;
+    --vermillion-dark: #a5744d; --ember: #64a9ee; --grey-warm: #eee4bd;
   }
-  :root[data-theme="midnight"] .theme-toggle { border-color: #e3a35d; color: #f5e6d0; background: #2a171b; }
-  :root[data-theme="midnight"] .theme-toggle:hover { background: #4b2028; }
-  :root[data-theme="midnight"] .nav-cta,
-  :root[data-theme="midnight"] .btn-ghost { border-color: #e3a35d; background: #2a171b; color: #f5e6d0; }
-  :root[data-theme="midnight"] .btn-primary { background: #e4574f; color: #fff6e8; box-shadow: 0 4px 0 #7d2630; }
+  .theme-toggle { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 999px; padding: .42rem .75rem; font: inherit; font-size: .78rem; cursor: pointer; white-space: nowrap; opacity: .9; }
+  .theme-toggle:hover { opacity: 1; background: rgba(100,169,238,.14); }
 </style>
 </head>
 <body>
