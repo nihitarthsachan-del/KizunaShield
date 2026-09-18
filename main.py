@@ -42,6 +42,11 @@ def landing():
     return _read_static("landing.html")
 
 
+@app.get("/connect", response_class=HTMLResponse)
+def connect_page():
+    return _read_static("connect.html")
+
+
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
     return _read_static("dashboard.html")
