@@ -2,14 +2,14 @@
 Compliance-ready incident report generator.
 Takes a scored org (from scoring.py) and produces a PDF report.
 """
-import os
+import io
 from datetime import datetime
+
+import os
 from jinja2 import Environment, FileSystemLoader
 from xhtml2pdf import pisa
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "reports")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 REMEDIATION_LIBRARY = {
     "remote_admin": "Disable direct internet exposure of remote admin services (RDP/VPN); require MFA and place behind a VPN gateway.",
@@ -36,7 +36,18 @@ def build_recommendations(org):
     return recs
 
 
-def generate_report(org):
+def generate_report(org) -> io.BytesIO:
+    """
+    Render the org's compliance report and return it as an in-memory PDF
+    (BytesIO), rather than writing to disk.
+
+    Serverless platforms (Vercel, Lambda, etc.) mount the deployment bundle
+    read-only and only expose a writable /tmp — writing report PDFs next to
+    the source (the old `reports/` dir under the app directory) raises
+    OSError: [Errno 30] Read-only file system in that environment, which
+    FastAPI surfaces as a 500. Generating in memory sidesteps the filesystem
+    entirely and works the same locally and in serverless.
+    """
     env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
     template = env.get_template("report.html")
 
@@ -51,16 +62,21 @@ def generate_report(org):
         recommendations=build_recommendations(org),
     )
 
-    output_path = os.path.join(OUTPUT_DIR, f"{org['org_id']}_report.pdf")
-    with open(output_path, "wb") as f:
-        result = pisa.CreatePDF(src=html_content, dest=f)
+    buffer = io.BytesIO()
+    result = pisa.CreatePDF(src=html_content, dest=buffer)
     if result.err:
         raise RuntimeError(f"PDF generation failed for {org['org_id']}")
-    return output_path
+
+    buffer.seek(0)
+    return buffer
 
 
 if __name__ == "__main__":
     from scoring import score_all_orgs
+
     for org in score_all_orgs():
-        path = generate_report(org)
-        print(f"Generated: {path}")
+        pdf_buffer = generate_report(org)
+        out_path = f"/tmp/{org['org_id']}_report.pdf"
+        with open(out_path, "wb") as f:
+            f.write(pdf_buffer.read())
+        print(f"Generated: {out_path}")
