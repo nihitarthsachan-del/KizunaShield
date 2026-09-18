@@ -214,16 +214,6 @@
   .report-btn:disabled { opacity: 0.5; cursor: wait; }
 
   .loading, .empty { color: var(--text-soft); padding: 40px 0; font-size: 14px; }
-
-  /* User-selectable dark aesthetic palette; the original palette remains the default. */
-  :root[data-theme="midnight"] {
-    --bg: #1d3353; --bg-panel: #727ea5; --text-main: #eee4bd; --text-soft: #eee4bd;
-    --accent: #64a9ee; --accent-deep: #a5744d; --gold: #a5744d;
-    --line: rgba(238,228,189,.28); --card-bg: #1d3353; --critical: #64a9ee;
-    --high: #a5744d; --medium: #eee4bd; --low: #64a9ee;
-  }
-  .theme-toggle { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 999px; padding: .42rem .75rem; font: inherit; font-size: .78rem; cursor: pointer; white-space: nowrap; margin-left: .8rem; }
-  .theme-toggle:hover { background: rgba(100,169,238,.14); }
 </style>
 </head>
 <body>
@@ -232,7 +222,6 @@
   <div class="wrap">
     <a class="brand" href="/"><span class="kanji-mark">絆</span> KizunaShield</a>
     <a class="nav-back" href="/">← Back to overview</a>
-  <button class="theme-toggle" type="button" aria-label="Switch color palette" aria-pressed="false">Dark aesthetic</button>
   </div>
 </nav>
 
@@ -333,28 +322,6 @@ function downloadReport(orgId, btn) {
 }
 
 loadOrgs();
-</script>
-
-
-<script>
-(() => {
-  const root = document.documentElement;
-  if (localStorage.getItem('kizuna-theme') === 'midnight') root.dataset.theme = 'midnight';
-  const toggle = document.querySelector('.theme-toggle');
-  if (!toggle) return;
-  const update = () => {
-    const active = root.dataset.theme === 'midnight';
-    toggle.textContent = active ? 'Classic palette' : 'Dark aesthetic';
-    toggle.setAttribute('aria-pressed', String(active));
-  };
-  toggle.addEventListener('click', () => {
-    const active = root.dataset.theme !== 'midnight';
-    if (active) root.dataset.theme = 'midnight'; else delete root.dataset.theme;
-    localStorage.setItem('kizuna-theme', active ? 'midnight' : 'classic');
-    update();
-  });
-  update();
-})();
 </script>
 
 </body>
