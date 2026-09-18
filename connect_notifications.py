@@ -1,4 +1,4 @@
-"""HTML report and SMTP email delivery for scan requests."""
+"""HTML report and email delivery for scan requests."""
 
 from __future__ import annotations
 
@@ -8,8 +8,11 @@ import os
 import smtplib
 from email.message import EmailMessage
 from email.utils import formataddr
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 NOTIFY_EMAIL = os.getenv("SCAN_NOTIFY_EMAIL", "madipadige.nikhil4u@gmail.com")
+EMAIL_WEBHOOK_URL = os.getenv("EMAIL_WEBHOOK_URL", "")
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
@@ -40,24 +43,58 @@ def build_request_report(entry: dict) -> str:
 <p class=\"small\">This report was generated automatically by KizunaShield. It is a request summary, not a completed security scan.</p></main></body></html>"""
 
 
-def send_request_report(entry: dict) -> None:
-    """Send the request report through an authenticated SMTP mailbox."""
+def _plain_text(entry: dict) -> str:
+    details = entry.get("details") or {}
+    detail_text = "\n".join(f"{key}: {value}" for key, value in details.items())
+    return (
+        f"New KizunaShield scan request\n\nReference: {entry.get('request_id')}\n"
+        f"Organization: {entry.get('org_name')}\nContact: {entry.get('contact_email')}\n"
+        f"Method: {entry.get('method')}\nDetails:\n{detail_text or 'None supplied'}"
+    )
+
+
+def _send_via_webhook(entry: dict, report_html: str) -> None:
+    payload = json.dumps({
+        "to": NOTIFY_EMAIL,
+        "subject": f"KizunaShield scan request {entry['request_id']} — {entry.get('org_name', 'Unknown organization')}",
+        "html": report_html,
+        "text": _plain_text(entry),
+        "request": entry,
+    }).encode("utf-8")
+    request = Request(
+        EMAIL_WEBHOOK_URL,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            if not 200 <= response.status < 300:
+                raise RuntimeError(f"Email webhook returned HTTP {response.status}")
+            result = json.loads(response.read().decode("utf-8"))
+            if result.get("ok") is not True:
+                raise RuntimeError(f"Email webhook rejected request: {result.get('error', 'unknown error')}")
+    except (HTTPError, URLError, TimeoutError) as exc:
+        raise RuntimeError(f"Email webhook delivery failed: {exc}") from exc
+
+
+def _send_via_smtp(entry: dict, report_html: str) -> None:
     missing = [name for name, value in {
         "SMTP_USER": SMTP_USER,
         "SMTP_PASSWORD": SMTP_PASSWORD,
         "SMTP_FROM": SMTP_FROM,
     }.items() if not value]
     if missing:
-        raise RuntimeError(f"Email automation is not configured: missing {', '.join(missing)}")
-
-    report_html = build_request_report(entry)
+        raise RuntimeError(
+            "Email automation is not configured: set EMAIL_WEBHOOK_URL "
+            "or SMTP_USER, SMTP_PASSWORD, and SMTP_FROM"
+        )
     message = EmailMessage()
     message["Subject"] = f"KizunaShield scan request {entry['request_id']} — {entry.get('org_name', 'Unknown organization')}"
     message["From"] = formataddr((SMTP_FROM_NAME, SMTP_FROM))
     message["To"] = NOTIFY_EMAIL
-    message.set_content("A new KizunaShield scan request is attached as an HTML email. Please view it in an HTML-capable email client.")
+    message.set_content(_plain_text(entry))
     message.add_alternative(report_html, subtype="html")
-
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
             server.ehlo()
@@ -66,4 +103,13 @@ def send_request_report(entry: dict) -> None:
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(message)
     except (OSError, smtplib.SMTPException) as exc:
-        raise RuntimeError(f"Email automation failed: {exc}") from exc
+        raise RuntimeError(f"SMTP email automation failed: {exc}") from exc
+
+
+def send_request_report(entry: dict) -> None:
+    """Deliver the report via Google Apps Script webhook or SMTP."""
+    report_html = build_request_report(entry)
+    if EMAIL_WEBHOOK_URL:
+        _send_via_webhook(entry, report_html)
+    else:
+        _send_via_smtp(entry, report_html)
